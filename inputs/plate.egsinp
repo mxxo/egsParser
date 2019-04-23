@@ -1,0 +1,14 @@
+################################
+### AUSGAB OBJECTS
+################################
+
+:start ausgab object definition: # Only 1 ausgab definition block allowed
+
+### Particle tracks
+    :start ausgab object:
+        name = tracks
+        library = egs_track_scoring
+    :stop ausgab object:
+
+:stop ausgab object definition:
+
