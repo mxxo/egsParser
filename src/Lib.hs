@@ -3,16 +3,20 @@
 
 module Lib where
 
-import Control.Applicative hiding (some, many)
-import Control.Applicative.Permutations
-import Control.Monad
+-- import Control.Applicative (void) -- hiding (some, many)
+-- import Control.Applicative.Combinators (between)
+import Control.Applicative.Permutations (toPermutation, runPermutation)
+import Control.Monad (void)
 import Data.Text (Text)
-import Data.Void
-import Text.Megaparsec hiding (State)
-import Text.Megaparsec.Char
+import Data.Void (Void)
+-- import Text.Megaparsec hiding (State)
+import Text.Megaparsec (between, choice, eof, optional, Parsec, parseTest, some, (<?>))
+import Text.Megaparsec.Char (char, string)
 -- import Text.Megaparsec.Debug -- dbg "parse_component_name" added in the parser shows each step
 import qualified Data.Text as T
 import qualified Text.Megaparsec.Char.Lexer as L
+
+import Lex (spaceConsumer, symbol)
 
 type Parser = Parsec Void Text
 
@@ -21,6 +25,25 @@ data Particle =
   | Photon
   | Positron
   deriving (Eq, Show)
+
+pParticle :: Parser Particle
+pParticle = choice
+  [ Electron <$ string "charge = -1"
+  , Photon   <$ string "charge =  0"
+  , Positron <$ string "charge =  1" ]
+
+
+
+-- geometry block is anything inside the delimiters
+geometryBlock :: Parser a -> Parser a
+geometryBlock = between (symbol ":" *> symbol "start" *> symbol "geometry" *> symbol "block" *> symbol ":")
+                        (symbol ":" *> symbol "end"   *> symbol "geometry" *> symbol "block" *> symbol ":")
+
+-- all the symbols to handle whitespace might be unnecessary but its a first try
+-- can successfully parse something inside the delimiters, ex below
+
+--$ parseTest (geometryBlock pPermGeometry <* eof) ":start geometry block:&#:end geometry block:"
+--("&",Just "#")
 
 data Source = Source
   { name :: Text
@@ -38,10 +61,25 @@ data Egsinp = Egsinp
   --, view     :: Maybe View
   } deriving (Eq, Show)
 
+-- first level permutation
 pPermGeometry :: Parser (Text, Maybe Text)
 pPermGeometry = runPermutation $
-    (,) <$> toPermutation (T.singleton <$> char ':')
+    (,) <$> toPermutation (T.singleton <$> char '&')
         <*> toPermutation (optional $ T.singleton <$> (char '#'))
+
+-- permutation of permutations
+pGen = runPermutation $
+    (,) <$> toPermutation (pPermGeometry)
+        <*> toPermutation (T.singleton <$> char '%')
+
+-- in order combined with permutations
+pOrdered = do
+    a <- T.singleton <$> (char '/')
+    b <- pPermGeometry
+    c <- T.singleton <$> (char '|')
+    pure (a,b,c)
+
+-- pPerm = Parser
 
 --pGeometry :: Parser (Text, Text)
 --pGeometry =  do
