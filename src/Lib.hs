@@ -3,7 +3,7 @@
 
 module Lib where
 
--- import Control.Applicative (void) -- hiding (some, many)
+-- import Control.Applicative hiding (some, many)
 -- import Control.Applicative.Combinators (between)
 import Control.Applicative.Permutations (toPermutation, runPermutation)
 import Control.Monad (void)
@@ -32,8 +32,6 @@ pParticle = choice
   , Photon   <$ string "charge =  0"
   , Positron <$ string "charge =  1" ]
 
-
-
 -- geometry block is anything inside the delimiters
 geometryBlock :: Parser a -> Parser a
 geometryBlock = between (symbol ":" *> symbol "start" *> symbol "geometry" *> symbol "block" *> symbol ":")
@@ -42,7 +40,7 @@ geometryBlock = between (symbol ":" *> symbol "start" *> symbol "geometry" *> sy
 -- all the symbols to handle whitespace might be unnecessary but its a first try
 -- can successfully parse something inside the delimiters, ex below
 
---$ parseTest (geometryBlock pPermGeometry <* eof) ":start geometry block:&#:end geometry block:"
+-- $ parseTest (geometryBlock pPermGeometry <* eof) ":start geometry block:&#:end geometry block:"
 --("&",Just "#")
 
 data Source = Source
@@ -67,10 +65,31 @@ pPermGeometry = runPermutation $
     (,) <$> toPermutation (T.singleton <$> char '&')
         <*> toPermutation (optional $ T.singleton <$> (char '#'))
 
+-- attempt to avoid repetition of <*> and toPermutation -> seems to require
+-- some longwinded typeclass constraints here. If it gets bad enough maybe
+-- we make a variadic function
+--
+-- pPermGeometry' :: Parser (Text, Text)
+-- pPermGeometry' = runPermutation $
+--     liftA2 (,) (T.singleton <$> char '&') (T.singleton <$> char '#')
+
+-- list attempt -> didn't work because lists must be all the same type
+-- permList =
+--     [ T.singleton <$> char '&'
+--     , optional $ T.singleton <$> char '#' ]
+
+-- other attempt using tuple, doesn't seem to be an easy way to generalize to higher arity tuples
+--perms :: (Parser Text, Parser (Maybe Text))
+--perms =
+--  ( T.singleton <$> char '&'
+--  , optional $ T.singleton <$> char '#' )
 -- permutation of permutations
+
 pGen = runPermutation $
     (,) <$> toPermutation (pPermGeometry)
         <*> toPermutation (T.singleton <$> char '%')
+
+
 
 -- in order combined with permutations
 pOrdered = do
