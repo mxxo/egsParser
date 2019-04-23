@@ -10,8 +10,8 @@ import Control.Monad (void)
 import Data.Text (Text)
 import Data.Void (Void)
 -- import Text.Megaparsec hiding (State)
-import Text.Megaparsec (between, choice, eof, optional, Parsec, parseTest, some, (<?>))
-import Text.Megaparsec.Char (char, string)
+import Text.Megaparsec (between, choice, eof, many, optional, Parsec, parseTest, some, (<?>))
+import Text.Megaparsec.Char (char, alphaNumChar, space, string)
 -- import Text.Megaparsec.Debug -- dbg "parse_component_name" added in the parser shows each step
 import qualified Data.Text as T
 import qualified Text.Megaparsec.Char.Lexer as L
@@ -43,6 +43,17 @@ geometryBlock = between (symbol ":" *> symbol "start" *> symbol "geometry" *> sy
 -- $ parseTest (geometryBlock pPermGeometry <* eof) ":start geometry block:&#:end geometry block:"
 --("&",Just "#")
 
+-- output objects ("ausgab" == German for "output")
+data Ausgab = Ausgab
+  { a_name :: Text
+  , a_library :: Text
+  } deriving (Eq, Show)
+
+--pAusgab :: Parser Ausgab
+--pAusgab = runPermutation $
+--    Ausgab <$> toPermutation (T.pack <$> (symbol "name" *> symbol "=" *> some alphaNumChar)
+--           <*> toPermutation (T.pack <$> (symbol "library" *> symbol "=" *> some alphaNumChar)
+
 data Source = Source
   { name :: Text
   , library :: Text
@@ -51,7 +62,7 @@ data Source = Source
 
 data Egsinp = Egsinp
   { sources :: [Source]
-  --, ausgab   :: Maybe Ausgab
+  --, ausgab   :: Maybe [Ausgab]
   --, control  :: Control
   --, geometry :: Geometry
   --, media    :: Maybe Media
