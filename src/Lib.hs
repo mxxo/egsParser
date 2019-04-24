@@ -1,7 +1,7 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE RecordWildCards  #-}
 
-module Lib where
+module Lib where -- (egsinpParser)
 
 -- import Control.Applicative hiding (some, many)
 -- import Control.Applicative.Combinators (between)
@@ -121,6 +121,10 @@ pOrdered = do
 
 pSource :: Parser Source
 pSource = undefined
+
+-- removes all whitespace before and ensures the file has an eof
+egsinpParser :: Parser Egsinp
+egsinpParser = between spaceConsumer eof pEgsinp
 
 pEgsinp :: Parser Egsinp
 pEgsinp = do
