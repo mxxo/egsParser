@@ -64,7 +64,7 @@ pAusgabBlock :: Parser (Maybe [Ausgab])
 pAusgabBlock = --dbg "ausgab block" . optional $ do
     -- void $ dbg "outer header" (symbol ":" *> symbol "start" *> symbol "ausgab" *> symbol "object" *> symbol "definition" *> symbol ":")
     --ausgabs <- ausgab_block (many pAusgabObject)
-    optional $ ausgab_block (many pAusgabObject)
+    optional ( ausgab_block (many pAusgabObject) <?> "ausgab blocks")
     -- void $ dbg "outer footer" (symbol ":" *> symbol "stop" *> symbol "ausgab" *> symbol "object" *> symbol "definition" *> symbol ":")
     --pure ausgabs
 
