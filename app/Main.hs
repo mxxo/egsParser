@@ -22,6 +22,6 @@ main = do
         let input_file = head args
         hndl <- openFile input_file ReadMode
         contents <- hGetContents $ hndl
-        print contents -- dbg
+        -- print contents -- dbg
         parseTest egsinpParser contents
 

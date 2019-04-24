@@ -10,13 +10,13 @@ import Control.Monad (void)
 import Data.Text (Text)
 import Data.Void (Void)
 -- import Text.Megaparsec hiding (State)
-import Text.Megaparsec (between, choice, eof, many, optional, Parsec, parseTest, some, (<?>))
+import Text.Megaparsec (between, choice, eof, many, optional, Parsec, parseTest, some, try, (<?>), (<|>))
 import Text.Megaparsec.Char (char, alphaNumChar, space, string)
--- import Text.Megaparsec.Debug -- dbg "parse_component_name" added in the parser shows each step
+import Text.Megaparsec.Debug -- dbg "parse_component_name" added in the parser shows each step
 import qualified Data.Text as T
 import qualified Text.Megaparsec.Char.Lexer as L
 
-import Lex (spaceConsumer, symbol)
+import Lex (ausgab_block, spaceConsumer, symbol)
 
 type Parser = Parsec Void Text
 
@@ -25,6 +25,17 @@ data Particle =
   | Photon
   | Positron
   deriving (Eq, Show)
+
+data AusgabType
+  = TrackScoring
+  | DoseScoring -- add more parameters here
+  deriving (Eq, Show)
+
+pAusgabType :: Parser AusgabType
+pAusgabType = choice
+-- maybe use symbol instead?
+  [ TrackScoring <$ string "egs_track_scoring"
+  , DoseScoring  <$ string "egs_dose_scoring" ]
 
 pParticle :: Parser Particle
 pParticle = choice
@@ -35,7 +46,7 @@ pParticle = choice
 -- geometry block is anything inside the delimiters
 geometryBlock :: Parser a -> Parser a
 geometryBlock = between (symbol ":" *> symbol "start" *> symbol "geometry" *> symbol "block" *> symbol ":")
-                        (symbol ":" *> symbol "end"   *> symbol "geometry" *> symbol "block" *> symbol ":")
+                        (symbol ":" *> symbol "stop"   *> symbol "geometry" *> symbol "block" *> symbol ":")
 
 -- all the symbols to handle whitespace might be unnecessary but its a first try
 -- can successfully parse something inside the delimiters, ex below
@@ -45,14 +56,39 @@ geometryBlock = between (symbol ":" *> symbol "start" *> symbol "geometry" *> sy
 
 -- output objects ("ausgab" == German for "output")
 data Ausgab = Ausgab
-  { a_name :: Text
-  , a_library :: Text
+  { objectName :: Text
+  , ausgabType :: AusgabType
   } deriving (Eq, Show)
 
---pAusgab :: Parser Ausgab
---pAusgab = runPermutation $
---    Ausgab <$> toPermutation (T.pack <$> (symbol "name" *> symbol "=" *> some alphaNumChar)
---           <*> toPermutation (T.pack <$> (symbol "library" *> symbol "=" *> some alphaNumChar)
+pAusgabBlock :: Parser (Maybe [Ausgab])
+pAusgabBlock = --dbg "ausgab block" . optional $ do
+    -- void $ dbg "outer header" (symbol ":" *> symbol "start" *> symbol "ausgab" *> symbol "object" *> symbol "definition" *> symbol ":")
+    --ausgabs <- ausgab_block (many pAusgabObject)
+    optional $ ausgab_block (many pAusgabObject)
+    -- void $ dbg "outer footer" (symbol ":" *> symbol "stop" *> symbol "ausgab" *> symbol "object" *> symbol "definition" *> symbol ":")
+    --pure ausgabs
+
+pAusgabObject :: Parser Ausgab
+pAusgabObject = try $ do -- try is critical here -> need to be able to backtrack if there aren't any objects afterwards
+    void $ dbg "header" (symbol ":" *> symbol "start" *> symbol "ausgab" *> symbol "object" *> symbol ":")
+    ausgab <- dbg "ausgab obj" pAusgab
+    void (symbol "")
+    void $ dbg "footer" (symbol ":" *> symbol "stop" *> symbol "ausgab" *> symbol "object" *> symbol ":")
+    pure ausgab
+
+pAusgab :: Parser Ausgab
+pAusgab = runPermutation $
+    Ausgab <$> toPermutation nameParser -- <$> toPermutation (T.pack <$> (symbol "name" *> symbol "=" *> some (alphaNumChar <|> space)))
+           <*> toPermutation typeParser
+          where
+            nameParser = do
+                symbol "name" *> symbol "="
+                T.pack <$> some alphaNumChar <* symbol "" <?> "ausgab object name"
+            typeParser = do
+                symbol "library" *> symbol "="
+                pAusgabType
+
+           -- <*> toPermutation (T.pack <$> (symbol "library" *> symbol "=" *> some alphaNumChar))
 
 data Source = Source
   { name :: Text
@@ -62,7 +98,7 @@ data Source = Source
 
 data Egsinp = Egsinp
   { sources :: [Source]
-  --, ausgab   :: Maybe [Ausgab]
+  , ausgab  :: Maybe [Ausgab] -- [Ausgab]
   --, control  :: Control
   --, geometry :: Geometry
   --, media    :: Maybe Media
@@ -128,8 +164,8 @@ egsinpParser = between spaceConsumer eof pEgsinp
 
 pEgsinp :: Parser Egsinp
 pEgsinp = do
-      sources <- some pSource <?> "source definition" -- at least one source
-
+      ausgab <- pAusgabBlock <?> "ausgab object definition" -- at least one source
+      sources <- pure []
       pure Egsinp {..} -- form the input sources from our parsed components
 --
 --    uriScheme <- pScheme <?> "valid scheme" -- <?> is synonym for label primitive - gives nicer parse errors
