@@ -1,10 +1,16 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE RecordWildCards  #-}
 
-module Lex (ausgab_block, spaceConsumer, symbol) where
+module Lex (ausgab_block
+           , integer
+           , float
+           , spaceConsumer
+           , symbol
+           ) where
 
 import Control.Applicative (empty) -- hiding (some, many)
 import Control.Monad (void)
+import Data.Scientific
 import Data.Text (Text)
 import Data.Void (Void)
 import Text.Megaparsec (between, Parsec)
@@ -27,8 +33,23 @@ spaceConsumer = L.space space1 lineCmnt blockCmnt
     -- blockCmnt = L.skipBlockComment "#" "\n" -- tried to be from the pound to the end of the line but it didn't work... I think have to lex after every word match
 
 -- a lexeme is assumed to not have any whitespace in front but perhaps following
-lexeme :: Parser a -> Parser a
+-- lexeme :: Parser Text -> Parser Text
 lexeme = L.lexeme spaceConsumer -- uses our custom space consumer
+
+-- base 10 unsigned integers
+unsignedInteger :: Parser Integer
+unsignedInteger = lexeme L.decimal
+
+-- base 10 signed integer
+integer :: Parser Integer
+integer = L.signed spaceConsumer unsignedInteger
+
+-- all numbers are scientific (allows for e exponentation notation)
+unsignedFloat :: Parser Scientific
+unsignedFloat = lexeme L.scientific
+
+float :: Parser Scientific
+float = L.signed spaceConsumer unsignedFloat
 
 -- a symbol is some fixed string, followed by whitespace
 symbol :: Text-> Parser Text

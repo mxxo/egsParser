@@ -10,13 +10,13 @@ import Control.Monad (void)
 import Data.Text (Text)
 import Data.Void (Void)
 -- import Text.Megaparsec hiding (State)
-import Text.Megaparsec (between, choice, eof, label, many, optional, Parsec, parseTest, some, try, (<?>), (<|>))
+import Text.Megaparsec (between, choice, eof, label, many, optional, Parsec, parseTest, satisfy, some, try, (<?>), (<|>))
 import Text.Megaparsec.Char (char, alphaNumChar, space, string)
 import Text.Megaparsec.Debug -- dbg "parse_component_name" added in the parser shows each step
 import qualified Data.Text as T
 import qualified Text.Megaparsec.Char.Lexer as L
 
-import Lex (ausgab_block, spaceConsumer, symbol)
+import Lex (ausgab_block, integer, float, spaceConsumer, symbol)
 
 type Parser = Parsec Void Text
 
@@ -38,13 +38,16 @@ pAusgabType = choice
   , DoseScoring  <$ symbol "egs_dose_scoring" ]
 
 pParticle :: Parser Particle
-pParticle = choice
-  [ Electron <$ string "charge = -1"
-  , Photon   <$ string "charge =  0"
-  , Positron <$ string "charge =  1" ]
+pParticle = do
+    void (symbol "charge")
+    void equals
+    choice
+      [ Electron <$ symbol "-1"
+      , Photon   <$ symbol  "0"
+      , Positron <$ symbol  "1" ]
 
---assignment :: a -> Parser a
---assigment
+-- assignment :: Text -> Parser Text
+-- assignment name = T.pack <$> (symbol name <*> assign <*> (some alphaNumChar))
 
 --spaced_words :: [a] -> Parser a
 --spaced_words []     = spaceConsumer -- clear the whitespace at the end of a line
@@ -66,7 +69,6 @@ data Ausgab = Ausgab
   { objectName :: Text
   , ausgabType :: AusgabType
   } deriving (Eq, Show)
-
 pAusgabBlock :: Parser (Maybe [Ausgab])
 pAusgabBlock = dbg "outer block" . optional $ do
     dbg "outer header" (symbol ":" *> symbol "start" *> symbol "ausgab" *> symbol "object" *> symbol "definition" *> symbol ":")
@@ -86,6 +88,9 @@ pAusgabBlock = dbg "outer block" . optional $ do
 
 newline :: Parser Text
 newline = symbol ""
+
+equals :: Parser Text
+equals = symbol "="
 
 pAusgabObject :: Parser Ausgab
 pAusgabObject = try $ do -- try is critical here -> need to be able to backtrack if there aren't any objects afterwards
